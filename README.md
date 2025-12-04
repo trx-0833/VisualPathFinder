@@ -54,11 +54,6 @@
    pip install pygame==2.5.0 opencv-python==4.8.0.74
    ```
 
-   或者使用requirements.txt：
-   ```bash
-   pip install -r requirements.txt
-   ```
-
 ## 🚀 使用指南
 
 ### 基本使用
