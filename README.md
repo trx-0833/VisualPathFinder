@@ -154,7 +154,6 @@ COLORS_RGB = {
 
 1. **程序无法启动**
    ```
-   检查依赖安装：python test_environment.py
    确保安装了正确版本的Pygame和OpenCV
    ```
 
