@@ -45,20 +45,11 @@
 
 1. **克隆仓库**
    ```bash
-   git clone https://github.com/yourusername/VisualPathFinder.git
+   git clone https://github.com/trx-0833/VisualPathFinder.git
    cd VisualPathFinder
    ```
 
-2. **创建虚拟环境（推荐）**
-   ```bash
-   python -m venv venv
-   # Windows
-   venv\Scripts\activate
-   # Linux/Mac
-   source venv/bin/activate
-   ```
-
-3. **安装依赖**
+2. **安装依赖**
    ```bash
    pip install pygame==2.5.0 opencv-python==4.8.0.74
    ```
@@ -67,12 +58,6 @@
    ```bash
    pip install -r requirements.txt
    ```
-
-### 验证安装
-运行环境检查脚本：
-```bash
-python test_environment.py
-```
 
 ## 🚀 使用指南
 
@@ -123,8 +108,6 @@ VisualPathFinder/
 ├── path_algorithms.py      # 路径搜索算法实现
 ├── image_processor.py      # 图像迷宫处理模块
 ├── helpers.py              # 工具函数（坐标解析等）
-├── test_environment.py     # 环境测试脚本
-├── requirements.txt        # 依赖包列表
 └── README.md               # 项目说明文档
 ```
 
@@ -258,11 +241,10 @@ profiler.print_stats(sort='cumtime')
 ## 📞 联系方式
 
 如有问题或建议，请通过以下方式联系：
-- GitHub Issues: [提交问题](https://github.com/yourusername/VisualPathFinder/issues)
-- Email: your.email@example.com
+- GitHub Issues: [提交问题](https://github.com/trx-0833/VisualPathFinder/issues)
 
 ---
 
 <p align="center">
-  <b>探索算法的美妙世界，从可视化开始！</b>
+  <b>项目来源于我本科时期的期末作业，对其进行完善以后放到GitHub上，供诸位参考！</b>
 </p>
