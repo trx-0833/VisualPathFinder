@@ -130,7 +130,7 @@ class ControlPanel:
         algorithm_combo = ttk.Combobox(
             algo_frame,
             textvariable=self.algorithm_var,
-            values=["BFS", "DFS", "Dijkstra", "A*"],
+            values=["BFS", "DFS", "Dijkstra", "D-BFS", "D-DFS", "A*", "B*"],
             state="readonly",  # 只读，用户只能选择预设值 - Readonly, user can only select predefined values
             width=17
         )
@@ -400,6 +400,9 @@ class ControlPanel:
            - DFS: 深度优先搜索，快速找到一条路径但不保证最短
            - Dijkstra: 迪杰斯特拉算法，找到最小代价路径
            - A*: A星算法，启发式搜索，高效找到最小代价路径
+           - D-BFS: 双向广度优先搜索，从起点和终点同时搜索
+           - D-DFS: 双向深度优先搜索，从起点和终点同时进行DFS
+           - B*: B星算法，结合最佳优先搜索和A*的改进算法
         5. 图片迷宫探索支持以图片的形式输入迷宫
         6. 在导入迷宫图片时，推荐将GRID_NUM设置为上限值(即GRID_NUM=LENGTH/2)
         """

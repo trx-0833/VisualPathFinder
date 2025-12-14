@@ -7,7 +7,8 @@
 """
 
 import heapq
-from typing import List, Tuple, Set
+from typing import List, Tuple, Set, Dict, Deque
+from collections import deque
 from constants import COLORS_RGB
 import pygame
 import threading
@@ -119,18 +120,17 @@ class PathFinder:
                 # 高亮显示已访问节点（绿色）- Highlight visited nodes (green)
                 for node in visited:
                     x, y = node
-                    if grids[x][y].color != COLORS_RGB['black'] and (x, y) != start and (x, y) != end and (
-                            x, y) not in green_highlight:
+                    if grids[x][y].color != COLORS_RGB['black'] and node != start and node != end and node not in green_highlight:
                         callback(screen, x, y, 'green', False)
-                        green_highlight.add((x, y))
+                        green_highlight.add(node)
 
                 # 高亮显示待访问列表中的节点（紫色）- Highlight nodes in the to-visit list (purple)
                 to_visit = set(queue)
-                for x, y in to_visit:
-                    if grids[x][y].color != COLORS_RGB['black'] and (x, y) != start and (x, y) != end and (
-                            x, y) not in visited and (x, y) not in purple_highlight:
+                for node in to_visit:
+                    x, y = node
+                    if grids[x][y].color != COLORS_RGB['black'] and node != start and node != end and node not in visited and node not in purple_highlight:
                         callback(screen, x, y, 'purple', False)
-                        purple_highlight.add((x, y))
+                        purple_highlight.add(node)
 
                 # 通过强制刷新pygame界面实现减慢可视化的显示过程
                 # Slow down the visualization display process by forcibly refreshing the Pygame interface
@@ -601,4 +601,435 @@ class PathFinder:
                         heapq.heappush(open_set, (f_value, tentative_g, new_x, new_y))
 
         # 未找到路径 - No path found
+        return [], float('inf')
+
+    def bidirectional_bfs(self, screen, start: Tuple[int, int], end: Tuple[int, int], grids, weight_list,
+                          show_progress: bool = False, callback=None) -> Tuple[List[Tuple[int, int]], float]:
+        """
+        双向广度优先搜索 (D-BFS) - 从起点和终点同时进行BFS搜索
+        Bidirectional Breadth-First Search (D-BFS) - BFS search from both start and end simultaneously
+
+        Args:
+            screen: pygame的显示窗口 - Pygame display window
+            start (Tuple[int, int]): 起点坐标 - Start point coordinates
+            end (Tuple[int, int]): 终点坐标 - End point coordinates
+            grids: 网格对象数组 - Grid objects array
+            weight_list: 权重列表 - Weight list
+            show_progress (bool, optional): 是否显示搜索过程 - Whether to show search progress
+            callback (callable, optional): 进度回调函数 - Progress callback function
+
+        Returns:
+            Tuple[List[Tuple[int, int]], float]:
+                - 路径坐标列表 - Path coordinate list
+                - 路径总权重 - Total path weight
+        """
+        # 定义四个移动方向：上、下、左、右
+        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+
+        # 从前向搜索（从起点开始）
+        forward_queue = deque([start])
+        forward_visited = {start: None}  # 存储节点和前驱节点
+        forward_dist = {start: 0}  # 从起点到各点的距离
+
+        # 从后向搜索（从终点开始）
+        backward_queue = deque([end])
+        backward_visited = {end: None}  # 存储节点和前驱节点
+        backward_dist = {end: 0}  # 从终点到各点的距离
+
+        # 相遇点
+        meeting_point = None
+
+        # 可视化相关变量
+        green_highlight = set()
+        purple_highlight = set()
+
+        # 双向搜索循环
+        while forward_queue and backward_queue:
+            # 可视化进度处理
+            if show_progress and callback:
+                # 高亮显示前向搜索已访问节点（绿色）
+                for node in forward_visited:
+                    x, y = node
+                    if grids[x][y].color != COLORS_RGB[
+                         'black'] and node != start and node != end and node not in green_highlight:
+                        callback(screen, x, y, 'green', False)
+                        green_highlight.add(node)
+
+                # 高亮显示后向搜索已访问节点（绿色）
+                for node in backward_visited:
+                    x, y = node
+                    if grids[x][y].color != COLORS_RGB[
+                         'black'] and node != start and node != end and node not in green_highlight:
+                        callback(screen, x, y, 'green', False)
+                        green_highlight.add(node)
+
+                # 高亮显示前向搜索待访问节点（紫色）
+                for x, y in forward_queue:
+                    if grids[x][y].color != COLORS_RGB['black'] and (x, y) != start and (x, y) != end and (
+                     x, y) not in forward_visited and (x, y) not in purple_highlight:
+                        callback(screen, x, y, 'purple', False)
+                        purple_highlight.add((x, y))
+
+                # 高亮显示后向搜索待访问节点（紫色）
+                for x, y in backward_queue:
+                    if grids[x][y].color != COLORS_RGB['black'] and (x, y) != start and (x, y) != end and (
+                    x, y) not in backward_visited and (x, y) not in purple_highlight:
+                        callback(screen, x, y, 'purple', False)
+                        purple_highlight.add((x, y))
+
+            # 从前向队列扩展一层
+            forward_size = len(forward_queue)
+            for _ in range(forward_size):
+                x, y = forward_queue.popleft()
+
+                # 检查是否在后向搜索中访问过（相遇）
+                if (x, y) in backward_visited:
+                    meeting_point = (x, y)
+                    break
+
+                # 扩展邻居节点
+                for dx, dy in directions:
+                    new_x, new_y = x + dx, y + dy
+                    new_pos = (new_x, new_y)
+
+                    if self.is_valid_move(new_x, new_y, grids) and new_pos not in forward_visited:
+                        forward_visited[new_pos] = (x, y)
+                        forward_dist[new_pos] = forward_dist[(x, y)] + self.spot_weight(x, y, weight_list, start, end)
+                        forward_queue.append(new_pos)
+
+            if meeting_point:
+                break
+
+            # 从后向队列扩展一层
+            backward_size = len(backward_queue)
+            for _ in range(backward_size):
+                x, y = backward_queue.popleft()
+
+                # 检查是否在前向搜索中访问过（相遇）
+                if (x, y) in forward_visited:
+                    meeting_point = (x, y)
+                    break
+
+                # 扩展邻居节点
+                for dx, dy in directions:
+                    new_x, new_y = x + dx, y + dy
+                    new_pos = (new_x, new_y)
+
+                    if self.is_valid_move(new_x, new_y, grids) and new_pos not in backward_visited:
+                        backward_visited[new_pos] = (x, y)
+                        backward_dist[new_pos] = backward_dist[(x, y)] + self.spot_weight(x, y, weight_list, start, end)
+                        backward_queue.append(new_pos)
+
+            if meeting_point:
+                break
+
+        # 如果没有相遇点，返回无路径
+        if not meeting_point:
+            return [], float('inf')
+
+        # 重建路径：从前向路径 + 后向路径（反向）
+        # 前向部分：从起点到相遇点
+        forward_path = []
+        current = meeting_point
+        while current != start:
+            forward_path.append(current)
+            current = forward_visited[current]
+        forward_path.append(start)
+        forward_path.reverse()
+
+        # 后向部分：从相遇点到终点（不包括相遇点）
+        backward_path = []
+        current = meeting_point
+        while current != end:
+            current = backward_visited[current]
+            if current != end:
+                backward_path.append(current)
+
+        # 合并路径
+        full_path = forward_path + backward_path
+
+        # 计算总权重
+        total_weight = forward_dist[meeting_point] + backward_dist[meeting_point]
+
+        return full_path, total_weight
+
+    def bidirectional_dfs(self, screen, start: Tuple[int, int], end: Tuple[int, int], grids, weight_list,
+                          show_progress: bool = False, callback=None) -> Tuple[List[Tuple[int, int]], float]:
+        """
+        双向深度优先搜索 (D-DFS) - 从起点和终点同时进行DFS搜索
+        Bidirectional Depth-First Search (D-DFS) - DFS search from both start and end simultaneously
+
+        Args:
+            screen: pygame的显示窗口 - Pygame display window
+            start (Tuple[int, int]): 起点坐标 - Start point coordinates
+            end (Tuple[int, int]): 终点坐标 - End point coordinates
+            grids: 网格对象数组 - Grid objects array
+            weight_list: 权重列表 - Weight list
+            show_progress (bool, optional): 是否显示搜索过程 - Whether to show search progress
+            callback (callable, optional): 进度回调函数 - Progress callback function
+
+        Returns:
+            Tuple[List[Tuple[int, int]], float]:
+                - 路径坐标列表 - Path coordinate list
+                - 路径总权重 - Total path weight
+        """
+        # 定义四个移动方向：上、下、左、右
+        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+
+        # 检查起点和终点是否有效
+        if not self.is_valid_move(start[0], start[1], grids):
+            return [], float('inf')
+        if not self.is_valid_move(end[0], end[1], grids):
+            return [], float('inf')
+
+        # 从前向搜索（从起点开始）
+        forward_stack = [start]
+        forward_parent = {start: None}  # 存储节点和前驱节点
+        forward_dist = {start: 0}  # 从起点到各点的距离
+
+        # 从后向搜索（从终点开始）
+        backward_stack = [end]
+        backward_parent = {end: None}  # 存储节点和前驱节点
+        backward_dist = {end: 0}  # 从终点到各点的距离
+
+        # 相遇点
+        meeting_point = None
+
+        # 可视化相关变量
+        green_highlight = set()
+        purple_highlight = set()
+
+        # 交替执行前向和后向搜索
+        while forward_stack and backward_stack:
+            # 可视化进度处理
+            if show_progress and callback:
+                # 高亮显示前向搜索已访问节点（绿色）
+                for node in forward_parent:
+                    x, y = node
+                    if grids[x][y].color != COLORS_RGB[
+                         'black'] and node != start and node != end and node not in green_highlight:
+                        callback(screen, x, y, 'green', False)
+                        green_highlight.add(node)
+
+                # 高亮显示后向搜索已访问节点（绿色）
+                for node in backward_parent:
+                    x, y = node
+                    if grids[x][y].color != COLORS_RGB[
+                         'black'] and node != start and node != end and node not in green_highlight:
+                        callback(screen, x, y, 'green', False)
+                        green_highlight.add(node)
+
+                # 高亮显示前向搜索待访问节点（紫色）
+                for x, y in forward_stack:
+                    if grids[x][y].color != COLORS_RGB['black'] and (x, y) != start and (x, y) != end and (
+                     x, y) not in forward_parent and (x, y) not in purple_highlight:
+                        callback(screen, x, y, 'purple', False)
+                        purple_highlight.add((x, y))
+
+                # 高亮显示后向搜索待访问节点（紫色）
+                for x, y in backward_stack:
+                    if grids[x][y].color != COLORS_RGB['black'] and (x, y) != start and (x, y) != end and (
+                    x, y) not in backward_parent and (x, y) not in purple_highlight:
+                        callback(screen, x, y, 'purple', False)
+                        purple_highlight.add((x, y))
+
+            # 前向搜索一步
+            if forward_stack:
+                x, y = forward_stack.pop()
+
+                # 检查是否在后向搜索中访问过（相遇）
+                if (x, y) in backward_parent:
+                    meeting_point = (x, y)
+                    break
+
+                # 扩展邻居节点
+                for dx, dy in directions:
+                    new_x, new_y = x + dx, y + dy
+                    new_pos = (new_x, new_y)
+
+                    if self.is_valid_move(new_x, new_y, grids) and new_pos not in forward_parent:
+                        forward_parent[new_pos] = (x, y)
+                        forward_dist[new_pos] = forward_dist[(x, y)] + self.spot_weight(new_x, new_y, weight_list,
+                                                                                        start, end)
+                        forward_stack.append(new_pos)
+
+            # 后向搜索一步
+            if backward_stack:
+                x, y = backward_stack.pop()
+
+                # 检查是否在前向搜索中访问过（相遇）
+                if (x, y) in forward_parent:
+                    meeting_point = (x, y)
+                    break
+
+                # 扩展邻居节点
+                for dx, dy in directions:
+                    new_x, new_y = x + dx, y + dy
+                    new_pos = (new_x, new_y)
+
+                    if self.is_valid_move(new_x, new_y, grids) and new_pos not in backward_parent:
+                        backward_parent[new_pos] = (x, y)
+                        backward_dist[new_pos] = backward_dist[(x, y)] + self.spot_weight(new_x, new_y, weight_list,
+                                                                                          start, end)
+                        backward_stack.append(new_pos)
+
+        # 如果没有相遇点，返回无路径
+        if not meeting_point:
+            return [], float('inf')
+
+        # 重建路径
+        # 从前向相遇点到起点
+        forward_path = []
+        current = meeting_point
+        while current is not None:
+            forward_path.append(current)
+            current = forward_parent[current]
+        forward_path.reverse()  # 反转得到从起点到相遇点的路径
+
+        # 从相遇点的后向父节点到终点
+        backward_path = []
+        current = backward_parent[meeting_point]  # 从相遇点的下一个节点开始
+        while current is not None:
+            backward_path.append(current)
+            current = backward_parent[current]
+
+        # 合并路径（注意：相遇点在forward_path中已经包含）
+        full_path = forward_path + backward_path
+
+        # 计算总权重（注意：相遇点的权重不应该重复计算）
+        # 前向距离包含相遇点权重，后向距离也包含相遇点权重，所以需要减去一次相遇点权重
+        meeting_weight = self.spot_weight(meeting_point[0], meeting_point[1], weight_list, start, end)
+        total_weight = forward_dist[meeting_point] + backward_dist[meeting_point] - meeting_weight
+
+        return full_path, total_weight
+
+    def b_star(self, screen, start: Tuple[int, int], end: Tuple[int, int], grids, weight_list,
+               show_progress: bool = False, callback=None) -> Tuple[List[Tuple[int, int]], float]:
+        """
+        B*算法 - 结合最佳优先搜索和A*的改进算法
+        B* Algorithm - Improved algorithm combining Best-First Search and A*
+
+        Args:
+            screen: pygame的显示窗口 - Pygame display window
+            start (Tuple[int, int]): 起点坐标 - Start point coordinates
+            end (Tuple[int, int]): 终点坐标 - End point coordinates
+            grids: 网格对象数组 - Grid objects array
+            weight_list: 权重列表 - Weight list
+            show_progress (bool, optional): 是否显示搜索过程 - Whether to show search progress
+            callback (callable, optional): 进度回调函数 - Progress callback function
+
+        Returns:
+            Tuple[List[Tuple[int, int]], float]:
+                - 最短路径坐标列表 - Shortest path coordinate list
+                - 路径总权重 - Total path weight
+        """
+        # 定义四个移动方向：上、下、左、右
+        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+
+        # 启发式函数：曼哈顿距离
+        def heuristic(a, b):
+            return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+        # 双启发式：欧几里得距离
+        def heuristic_euclidean(a, b):
+            return ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5
+
+        # 优先队列，存储(f值, g值, h值, 坐标)
+        open_set = []
+        g_start = 0
+        h_start = heuristic(start, end)
+        f_start = g_start + h_start
+        heapq.heappush(open_set, (f_start, g_start, h_start, start[0], start[1]))
+
+        # 已访问节点集合
+        visited = set()
+
+        # 前驱节点字典
+        predecessor = {}
+
+        # g值字典：从起点到当前节点的实际代价
+        g_value = {start: 0}
+
+        # 可视化相关变量
+        green_highlight = set()
+        purple_highlight = set()
+
+        # 主算法循环
+        while open_set:
+            # 可视化进度处理
+            if show_progress and callback:
+                # 高亮显示已访问节点（绿色）
+                for node in visited:
+                    x, y = node
+                    if grids[x][y].color != COLORS_RGB[
+                         'black'] and node != start and node != end and node not in green_highlight:
+                        callback(screen, x, y, 'green', False)
+                        green_highlight.add(node)
+
+                # 高亮显示待访问列表中的节点（紫色）
+                for _, _, _, x, y in open_set:
+                    if grids[x][y].color != COLORS_RGB['black'] and (x, y) != start and (x, y) != end and (
+                     x, y) not in visited and (x, y) not in purple_highlight:
+                        callback(screen, x, y, 'purple', False)
+                        purple_highlight.add((x, y))
+
+            # 从优先队列中取出f值最小的节点
+            current_f, current_g, current_h, x, y = heapq.heappop(open_set)
+            current = (x, y)
+
+            # 如果到达终点，重建路径并返回
+            if current == end:
+                # 重建路径
+                path = []
+                current_node = current
+                total_weight = g_value[current_node]
+
+                # 回溯直到起点
+                while current_node != start:
+                    path.append(current_node)
+                    current_node = predecessor[current_node]
+
+                # 添加起点并反转路径
+                path.append(start)
+                path.reverse()
+                return path, total_weight
+
+            # 如果节点已访问过，跳过
+            if current in visited:
+                continue
+
+            # 标记当前节点为已访问
+            visited.add(current)
+
+            # 检查所有相邻节点
+            for dx, dy in directions:
+                new_x, new_y = x + dx, y + dy
+                neighbor = (new_x, new_y)
+
+                # 如果相邻节点有效且未被访问
+                if self.is_valid_move(new_x, new_y, grids) and neighbor not in visited:
+                    # 计算从起点到邻居节点的实际代价
+                    weight = self.spot_weight(new_x, new_y, weight_list, start, end)
+                    tentative_g = g_value[current] + weight
+
+                    # 如果找到更优路径，更新代价并加入优先队列
+                    if neighbor not in g_value or tentative_g < g_value[neighbor]:
+                        # 更新前驱节点和g值
+                        predecessor[neighbor] = current
+                        g_value[neighbor] = tentative_g
+
+                        # 计算启发式值（使用曼哈顿距离和欧几里得距离的加权平均）
+                        h_manhattan = heuristic(neighbor, end)
+                        h_euclidean = heuristic_euclidean(neighbor, end)
+                        h_value = 0.7 * h_manhattan + 0.3 * h_euclidean
+
+                        # B*算法的f值计算：g + h + 动态调整因子
+                        # 动态调整因子基于当前节点到起点的距离
+                        distance_factor = 1.0 + (tentative_g / 100.0)  # 随着距离增加，逐渐重视实际代价
+                        f_value = (tentative_g + h_value * 10) * distance_factor
+
+                        # 将邻居加入优先队列
+                        heapq.heappush(open_set, (f_value, tentative_g, h_value, new_x, new_y))
+
+        # 未找到路径
         return [], float('inf')

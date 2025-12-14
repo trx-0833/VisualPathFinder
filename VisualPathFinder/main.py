@@ -46,8 +46,6 @@ class PathFinderApp:
         # Start application main loop
         self.start_main_loop()
 
-
-
     def setup_components(self):
         """
         设置和初始化所有应用程序组件
@@ -254,14 +252,17 @@ class PathFinderApp:
             'BFS': self.path_finder.bfs,
             'DFS': self.path_finder.dfs,
             'A*': self.path_finder.a_star,
-            'Dijkstra': self.path_finder.dijkstra
+            'Dijkstra': self.path_finder.dijkstra,
+            'D-BFS': self.path_finder.bidirectional_bfs,
+            'D-DFS': self.path_finder.bidirectional_dfs,
+            'B*': self.path_finder.b_star
         }
 
         # 创建分析器实例并开始分析
         profiler = cProfile.Profile()
         profiler.enable()  # 开启性能分析
 
-        # 使用指定算法查找最短路径 - Use specially algorithm to find shortest path
+        # 使用指定算法查找最短路径 - Use specially algorithm to find the shortest path
         self.current_path, self.path_cost = search_methods[method](
             self.pygame_display.screen, self.start_pos, self.end_pos,
             self.maze_generator.grids, self.maze_generator.weight_list,
